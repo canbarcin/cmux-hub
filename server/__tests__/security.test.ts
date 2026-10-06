@@ -5,6 +5,7 @@ import {
   isValidSecFetchSite,
   validateRequest,
   isValidWebSocketOrigin,
+  corsHeaders,
 } from "../middleware/security.ts";
 
 const config = { port: 4567 };
@@ -52,8 +53,25 @@ describe("isValidOrigin", () => {
     expect(isValidOrigin("http://evil.com", config)).toBe(false);
   });
 
-  test("allows other localhost ports (for preview pages)", () => {
-    expect(isValidOrigin("http://localhost:9999", config)).toBe(true);
+  test("rejects other localhost ports by default", () => {
+    expect(isValidOrigin("http://localhost:9999", config)).toBe(false);
+    expect(isValidOrigin("http://127.0.0.1:3000", config)).toBe(false);
+  });
+
+  test("rejects localhost origin without explicit port", () => {
+    expect(isValidOrigin("http://localhost", config)).toBe(false);
+  });
+
+  test("allows explicitly listed localhost ports (preview servers)", () => {
+    expect(isValidOrigin("http://localhost:9999", config, { extraAllowedPorts: [9999] })).toBe(
+      true,
+    );
+  });
+
+  test("rejects non-localhost origin even when port is listed", () => {
+    expect(isValidOrigin("http://evil.com:9999", config, { extraAllowedPorts: [9999] })).toBe(
+      false,
+    );
   });
 });
 
@@ -125,13 +143,31 @@ describe("validateRequest", () => {
     expect(result?.status).toBe(403);
   });
 
-  test("allows cross-site POST from localhost origin (preview pages)", () => {
+  test("allows cross-site POST from own localhost origin", () => {
     const req = makeRequest("http://localhost:4567/api/comment", "POST", {
       origin: "http://localhost:4567",
       "sec-fetch-site": "cross-site",
     });
     const result = validateRequest(req, config);
     expect(result).toBeNull();
+  });
+
+  test("rejects cross-site POST from another localhost port", () => {
+    const req = makeRequest("http://localhost:4567/api/action", "POST", {
+      origin: "http://localhost:3000",
+      "sec-fetch-site": "cross-site",
+    });
+    const result = validateRequest(req, config);
+    expect(result).not.toBeNull();
+    expect(result?.status).toBe(403);
+  });
+
+  test("allows cross-site POST from a listed preview server port", () => {
+    const req = makeRequest("http://localhost:4567/api/preview-comment", "POST", {
+      origin: "http://localhost:3000",
+      "sec-fetch-site": "cross-site",
+    });
+    expect(validateRequest(req, config, { extraAllowedPorts: [3000] })).toBeNull();
   });
 
   test("rejects cross-site POST from non-localhost origin", () => {
@@ -158,5 +194,34 @@ describe("isValidWebSocketOrigin", () => {
       headers: { origin: "http://evil.com" },
     });
     expect(isValidWebSocketOrigin(req, config)).toBe(false);
+  });
+
+  test("rejects other localhost ports", () => {
+    const req = new Request("http://localhost:4567/ws", {
+      headers: { origin: "http://localhost:3000" },
+    });
+    expect(isValidWebSocketOrigin(req, config)).toBe(false);
+  });
+});
+
+describe("corsHeaders", () => {
+  test("reflects own origin", () => {
+    expect(corsHeaders(config, "http://127.0.0.1:4567")["Access-Control-Allow-Origin"]).toBe(
+      "http://127.0.0.1:4567",
+    );
+  });
+
+  test("does not reflect other localhost ports by default", () => {
+    expect(corsHeaders(config, "http://localhost:3000")["Access-Control-Allow-Origin"]).toBe(
+      "http://localhost:4567",
+    );
+  });
+
+  test("reflects listed preview server origin", () => {
+    expect(
+      corsHeaders(config, "http://localhost:3000", { extraAllowedPorts: [3000] })[
+        "Access-Control-Allow-Origin"
+      ],
+    ).toBe("http://localhost:3000");
   });
 });

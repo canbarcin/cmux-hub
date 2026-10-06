@@ -43,7 +43,9 @@ User variables use env prefix method (`KEY='escaped' command`). Built-in vars (`
 Localhost-only server (`127.0.0.1`). Key defenses against browser-based attacks (malicious page → localhost):
 
 - Host header validation (DNS rebinding)
-- Origin header validation (CORS/CSRF)
+- Origin header validation (CORS/CSRF). Only cmux-hub's own port is trusted;
+  other localhost ports are rejected, except launcher-managed preview server
+  ports on `/api/preview-comment` (inspector script)
 - Sec-Fetch-Site check on write operations
 - Null Origin rejected on POST from browsers
 - `/api/action` accepts action ID + variables only, not raw commands

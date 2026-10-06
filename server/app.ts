@@ -8,6 +8,7 @@ import {
   securityHeaders,
   corsHeaders,
   isValidWebSocketOrigin,
+  type OriginOptions,
 } from "./middleware/security.ts";
 import { parseDiff, type ParsedDiff } from "../src/lib/diff-parser.ts";
 import { highlightDiffFiles } from "./diff-highlight.ts";
@@ -213,20 +214,47 @@ export function createAppConfig(deps: AppDeps) {
     }
   }
 
-  function addSecurityHeaders(response: Response, requestOrigin?: string | null): Response {
-    const headers = { ...securityHeaders(), ...corsHeaders(securityConfig, requestOrigin) };
+  // Preview pages of launcher-managed servers POST comments from their own origin
+  function previewOriginOptions(): OriginOptions {
+    const ports = deps.launcher?.getStates().map((s) => s.port) ?? [];
+    return { extraAllowedPorts: ports.filter((p) => p > 0) };
+  }
+
+  function addSecurityHeaders(
+    response: Response,
+    requestOrigin?: string | null,
+    originOptions?: OriginOptions,
+  ): Response {
+    const headers = {
+      ...securityHeaders(),
+      ...corsHeaders(securityConfig, requestOrigin, originOptions),
+    };
     for (const [key, value] of Object.entries(headers)) {
       response.headers.set(key, value);
     }
     return response;
   }
 
-  function jsonResponse(data: unknown, status = 200, req?: Request): Response {
-    return addSecurityHeaders(Response.json(data, { status }), req?.headers.get("origin"));
+  function jsonResponse(
+    data: unknown,
+    status = 200,
+    req?: Request,
+    originOptions?: OriginOptions,
+  ): Response {
+    return addSecurityHeaders(
+      Response.json(data, { status }),
+      req?.headers.get("origin"),
+      originOptions,
+    );
   }
 
-  function errorResponse(message: string, status = 500, req?: Request): Response {
-    return jsonResponse({ error: message }, status, req);
+  function errorResponse(
+    message: string,
+    status = 500,
+    req?: Request,
+    originOptions?: OriginOptions,
+  ): Response {
+    return jsonResponse({ error: message }, status, req, originOptions);
   }
 
   async function processAndHighlightDiff(raw: string): Promise<ParsedDiff> {
@@ -794,10 +822,11 @@ export function createAppConfig(deps: AppDeps) {
 
     "/api/preview-comment": {
       async POST(req: Request) {
-        const secErr = validateRequest(req, securityConfig);
+        const originOptions = previewOriginOptions();
+        const secErr = validateRequest(req, securityConfig, originOptions);
         if (secErr) {
           // Add CORS headers to error response so browser can read the error
-          addSecurityHeaders(secErr, req.headers.get("origin"));
+          addSecurityHeaders(secErr, req.headers.get("origin"), originOptions);
           return secErr;
         }
         try {
@@ -854,7 +883,7 @@ export function createAppConfig(deps: AppDeps) {
                 if (snapshot.trim()) {
                   const snapshotText = `\n[DOM Snapshot]\n${snapshot.substring(0, 2000)}\n`;
                   await cmux.sendText(text + snapshotText, resolveSurfaceId());
-                  return jsonResponse({ ok: true }, 200, req);
+                  return jsonResponse({ ok: true }, 200, req, originOptions);
                 }
               } catch {
                 // Fall through to send without snapshot
@@ -863,9 +892,14 @@ export function createAppConfig(deps: AppDeps) {
           }
 
           await cmux.sendText(text, resolveSurfaceId());
-          return jsonResponse({ ok: true }, 200, req);
+          return jsonResponse({ ok: true }, 200, req, originOptions);
         } catch (e) {
-          return errorResponse(e instanceof Error ? e.message : "Unknown error", 500, req);
+          return errorResponse(
+            e instanceof Error ? e.message : "Unknown error",
+            500,
+            req,
+            originOptions,
+          );
         }
       },
     },
@@ -974,7 +1008,11 @@ export function createAppConfig(deps: AppDeps) {
       if (req.method === "OPTIONS") {
         return new Response(null, {
           status: 204,
-          headers: corsHeaders(securityConfig, requestOrigin),
+          headers: corsHeaders(
+            securityConfig,
+            requestOrigin,
+            url.pathname === "/api/preview-comment" ? previewOriginOptions() : {},
+          ),
         });
       }
 
