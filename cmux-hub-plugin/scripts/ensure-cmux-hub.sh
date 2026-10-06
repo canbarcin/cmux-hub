@@ -1,9 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
+# Fork: never download release binaries. Build from the local source checkout
+# so the installed binary always matches reviewed code.
+
 INSTALL_DIR="${HOME}/.local/bin"
 INSTALL_PATH="${INSTALL_DIR}/cmux-hub"
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC_DIR="${CMUX_HUB_SRC:-${HOME}/Documents/insider-projects/cmux-hub}"
 REQUIRED_VERSION=$(grep '"version"' "${PLUGIN_ROOT}/.claude-plugin/plugin.json" | sed 's/.*"version": *"//;s/".*//')
 
 if [ -z "$REQUIRED_VERSION" ]; then
@@ -21,24 +25,22 @@ if [ "$CURRENT_VERSION" = "$REQUIRED_VERSION" ]; then
   exit 0
 fi
 
-# Detect OS and architecture
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m)
-case "$ARCH" in
-  x86_64) ARCH="x64" ;;
-  aarch64|arm64) ARCH="arm64" ;;
-  *)
-    echo "Unsupported architecture: $ARCH" >&2
-    exit 1
-    ;;
-esac
+if [ ! -f "${SRC_DIR}/package.json" ]; then
+  echo "cmux-hub source not found at ${SRC_DIR} (set CMUX_HUB_SRC)" >&2
+  exit 1
+fi
 
-ASSET_NAME="cmux-hub-${OS}-${ARCH}"
-DOWNLOAD_URL="https://github.com/azu/cmux-hub/releases/download/v${REQUIRED_VERSION}/${ASSET_NAME}"
+SRC_VERSION=$(grep '"version"' "${SRC_DIR}/package.json" | head -1 | sed 's/.*"version": *"//;s/".*//')
+if [ "$SRC_VERSION" != "$REQUIRED_VERSION" ]; then
+  echo "cmux-hub source is v${SRC_VERSION}, plugin expects v${REQUIRED_VERSION}. Run: git -C ${SRC_DIR} pull" >&2
+  exit 1
+fi
 
-echo "Installing cmux-hub v${REQUIRED_VERSION} (${OS}-${ARCH})..."
-mkdir -p "$INSTALL_DIR"
-curl -fsSL "$DOWNLOAD_URL" -o "${INSTALL_PATH}.tmp"
-chmod 755 "${INSTALL_PATH}.tmp"
-mv "${INSTALL_PATH}.tmp" "$INSTALL_PATH"
+if ! command -v bun >/dev/null 2>&1; then
+  echo "bun is required to build cmux-hub (brew install oven-sh/bun/bun)" >&2
+  exit 1
+fi
+
+echo "Building cmux-hub v${REQUIRED_VERSION} from ${SRC_DIR}..."
+(cd "$SRC_DIR" && bun install --frozen-lockfile >/dev/null && bun run install:local >/dev/null)
 echo "Installed cmux-hub v${REQUIRED_VERSION} to ${INSTALL_PATH}"

@@ -1,5 +1,14 @@
 # cmux-hub
 
+> **Fork of [azu/cmux-hub](https://github.com/azu/cmux-hub).** Differences from upstream:
+>
+> - The binary is built from this checkout (`bun run install:local`); the plugin never downloads release binaries and `cmux-hub update` is disabled.
+> - Only cmux-hub's own port is a trusted Origin. Other localhost ports are rejected, except launcher-managed preview servers on `/api/preview-comment`.
+> - Auto-start on session start is opt-in (`CMUX_HUB_AUTOSTART=1`); otherwise run `/cmux-hub:start`.
+> - Default toolbar actions add AI Review, Security Review and Test Coverage.
+>
+> Install: `bun install && bun run install:local`, then `claude plugin marketplace add <this repo path>` and `claude plugin install cmux-hub@cmux-hub-marketplace`. Set `CMUX_HUB_SRC` if the checkout is not at `~/Documents/insider-projects/cmux-hub`.
+
 A browser-based diff viewer for [cmux](https://cmux.dev). See what changed at a glance — syntax-highlighted diffs, inline review comments, commit history, GitHub PR status, and custom toolbar actions, all streamed in real time via WebSocket.
 
 https://github.com/user-attachments/assets/f5fbfd8b-6473-4f83-882e-967a5ca33205

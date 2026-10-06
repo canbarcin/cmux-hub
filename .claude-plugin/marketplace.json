@@ -1,13 +1,13 @@
 {
   "name": "cmux-hub-marketplace",
   "owner": {
-    "name": "azu"
+    "name": "canbarcin"
   },
   "plugins": [
     {
       "name": "cmux-hub",
       "source": "./cmux-hub-plugin",
-      "description": "Browser-based diff viewer for cmux. Auto-launches on session start."
+      "description": "Browser-based diff viewer for cmux. Built from source; start with /cmux-hub:start (auto-start opt-in via CMUX_HUB_AUTOSTART=1)."
     }
   ]
 }

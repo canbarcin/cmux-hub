@@ -45,9 +45,12 @@ if (values.version) {
 }
 
 if (positionals[0] === "update") {
-  const { runUpdateSafe } = await import("../server/updater.ts");
-  await runUpdateSafe();
-  process.exit(0);
+  // Fork: self-update would replace the source build with the upstream release binary
+  console.error(
+    "cmux-hub update is disabled in this fork. Rebuild from source instead:\n" +
+      "  cd <cmux-hub repo> && git pull && bun run install:local",
+  );
+  process.exit(1);
 }
 
 if (values.help) {
@@ -56,7 +59,7 @@ if (values.help) {
 Usage: cmux-hub [command] [options] [target_dir]
 
 Commands:
-  update                 Update cmux-hub to the latest version
+  update                 Disabled in this fork (use: bun run install:local)
 
 Options:
   -p, --port <port>      Server port (default: random)
@@ -109,7 +112,7 @@ Examples:
   cmux-hub --actions actions.json       # Custom toolbar actions
   cat actions.json | cmux-hub -a -      # Read actions from stdin
   cmux-hub --dry-run                    # Development mode
-  cmux-hub update                       # Update to latest version`);
+  bun run install:local                 # Rebuild and install from source (fork)`);
   process.exit(0);
 }
 

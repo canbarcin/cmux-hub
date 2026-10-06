@@ -1,5 +1,25 @@
 [
   { "label": "Commit", "type": "paste-and-enter", "command": "commit this change" },
+  { "label": "AI Review", "type": "paste-and-enter", "command": "/code-review:ai-review" },
   { "label": "Create PR", "type": "paste-and-enter", "command": "create a pull request" },
-  { "label": "Customize Menu", "type": "paste-and-enter", "command": "I want to customize the cmux-hub toolbar menu (.claude/cmux-hub.json). Ask me what actions I want to add or change, then edit the file. Run `cmux-hub --help` for the JSON format reference." }
+  {
+    "label": "More",
+    "submenu": [
+      {
+        "label": "Security Review",
+        "type": "paste-and-enter",
+        "command": "/security-reviewer:review"
+      },
+      {
+        "label": "Test Coverage",
+        "type": "paste-and-enter",
+        "command": "/test-coverage:test-coverage-analyze"
+      },
+      {
+        "label": "Customize Menu",
+        "type": "paste-and-enter",
+        "command": "I want to customize the cmux-hub toolbar menu (.claude/cmux-hub.json). Ask me what actions I want to add or change, then edit the file. Run `cmux-hub --help` for the JSON format reference."
+      }
+    ]
+  }
 ]

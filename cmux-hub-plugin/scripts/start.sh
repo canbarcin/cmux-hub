@@ -1,8 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# Allow skipping auto-start via env (e.g. for development repos)
-if [ "${CMUX_HUB_NO_AUTOSTART:-}" = "1" ]; then
+# Fork: auto-start is opt-in (CMUX_HUB_AUTOSTART=1). Otherwise start manually
+# with /cmux-hub:start so every Claude session does not open a browser pane.
+if [ "${CMUX_HUB_AUTOSTART:-}" != "1" ] || [ "${CMUX_HUB_NO_AUTOSTART:-}" = "1" ]; then
   exit 0
 fi
 

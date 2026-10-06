@@ -1,12 +1,12 @@
 {
   "name": "cmux-hub",
-  "description": "Browser-based diff viewer for cmux. Auto-launches on session start.",
-  "version": "1.6.0",
+  "description": "Browser-based diff viewer for cmux. Built from source; start with /cmux-hub:start (auto-start opt-in via CMUX_HUB_AUTOSTART=1).",
+  "version": "1.6.0-fork.1",
   "author": {
     "name": "azu"
   },
-  "homepage": "https://github.com/azu/cmux-hub",
-  "repository": "https://github.com/azu/cmux-hub",
+  "homepage": "https://github.com/canbarcin/cmux-hub",
+  "repository": "https://github.com/canbarcin/cmux-hub",
   "license": "MIT",
   "keywords": [
     "cmux",
