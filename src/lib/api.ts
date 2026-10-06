@@ -1,4 +1,5 @@
 import type { ServerState } from "../../server/launcher.ts";
+import type { ActionResponse } from "./action-feedback.ts";
 
 const BASE_URL = "";
 
@@ -149,7 +150,7 @@ export const api = {
   },
 
   executeAction(id: string, variables?: Record<string, string>, surfaceId?: string) {
-    return fetchJSON<{ ok: boolean; command: string }>("/api/action", {
+    return fetchJSON<ActionResponse>("/api/action", {
       method: "POST",
       body: JSON.stringify({ id, variables, surfaceId }),
     });

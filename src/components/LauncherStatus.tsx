@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "./ui/button.tsx";
+import { AlertCircle, Eye, Play, RotateCw, Square } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select.tsx";
 import { api } from "../lib/api.ts";
 import type { LauncherServer } from "../hooks/useLauncher.ts";
@@ -15,6 +15,31 @@ const STATUS_COLORS: Record<string, string> = {
   stopped: "bg-gray-500",
 };
 
+function IconButton({
+  title,
+  disabled,
+  onClick,
+  children,
+}: {
+  title: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      className="p-1 rounded text-[#8b949e] hover:text-[#e6edf3] hover:bg-[#30363d] disabled:opacity-50 disabled:pointer-events-none"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Compact launcher (preview server) status, rendered inline in the top bar. */
 export function LauncherStatus({ servers }: Props) {
   const [selectedName, setSelectedName] = useState<string>(servers[0]?.name ?? "");
   const [busy, setBusy] = useState(false);
@@ -33,22 +58,31 @@ export function LauncherStatus({ servers }: Props) {
     }
   }
 
-  return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#161b22] border-b border-[#30363d]">
-      <span className="text-xs text-[#8b949e] mr-1">Preview</span>
+  const dot = (status: string) => (
+    <span
+      className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${STATUS_COLORS[status] ?? STATUS_COLORS.stopped}`}
+    />
+  );
 
+  return (
+    <div
+      data-testid="launcher-status"
+      className="flex items-center gap-1 pr-2 mr-0.5 border-r border-[#30363d] text-xs text-[#c9d1d9]"
+      title={`Preview server: ${selected.name} (${selected.status})`}
+    >
       {servers.length > 1 ? (
         <Select value={selectedName} onValueChange={setSelectedName}>
-          <SelectTrigger size="sm" className="h-6 text-xs min-w-[120px]">
+          <SelectTrigger
+            size="sm"
+            className="data-[size=sm]:h-6 h-6 px-1.5 gap-1 text-xs min-w-[96px] border-[#30363d]"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {servers.map((s) => (
               <SelectItem key={s.name} value={s.name}>
                 <span className="flex items-center gap-1.5">
-                  <span
-                    className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_COLORS[s.status] ?? STATUS_COLORS.stopped}`}
-                  />
+                  {dot(s.status)}
                   {s.name}
                 </span>
               </SelectItem>
@@ -56,69 +90,61 @@ export function LauncherStatus({ servers }: Props) {
           </SelectContent>
         </Select>
       ) : (
-        <span className="flex items-center gap-1.5 text-xs">
-          <span
-            className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_COLORS[selected.status] ?? STATUS_COLORS.stopped}`}
-          />
+        <span className="flex items-center gap-1.5">
+          {dot(selected.status)}
           {selected.name}
         </span>
       )}
 
-      <span className="text-xs text-[#8b949e]">:{selected.port}</span>
+      <span className="text-[#6e7681] font-mono">:{selected.port}</span>
 
       {selected.status === "running" && (
         <>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
+          <IconButton
+            title="Open preview"
             disabled={busy}
             onClick={() => handleAction(() => api.launcherPreview(selected.name))}
           >
-            Preview
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
+            <Eye className="size-3" />
+          </IconButton>
+          <IconButton
+            title="Restart"
             disabled={busy}
             onClick={() => handleAction(() => api.launcherRestart(selected.name))}
           >
-            Restart
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
+            <RotateCw className="size-3" />
+          </IconButton>
+          <IconButton
+            title="Stop"
             disabled={busy}
             onClick={() => handleAction(() => api.launcherStop(selected.name))}
           >
-            Stop
-          </Button>
+            <Square className="size-3" />
+          </IconButton>
         </>
       )}
 
       {(selected.status === "stopped" || selected.status === "error") && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-xs"
+        <IconButton
+          title="Start"
           disabled={busy}
           onClick={() => handleAction(() => api.launcherStart(selected.name))}
         >
-          Start
-        </Button>
+          <Play className="size-3" />
+        </IconButton>
       )}
 
       {selected.status === "error" && selected.error && (
-        <span className="text-xs text-red-400 truncate max-w-[200px]" title={selected.error}>
-          {selected.error}
+        <span
+          className="flex items-center gap-1 text-[#f85149] truncate max-w-[160px]"
+          title={selected.error}
+        >
+          <AlertCircle className="size-3 shrink-0" />
+          <span className="truncate">{selected.error}</span>
         </span>
       )}
 
-      {selected.status === "starting" && (
-        <span className="text-xs text-yellow-400">Starting...</span>
-      )}
+      {selected.status === "starting" && <span className="text-[#d29922]">Starting...</span>}
     </div>
   );
 }

@@ -11,6 +11,8 @@ export function useStatus() {
   return {
     loading: data === null,
     branch: data?.branch ?? "",
+    /** `git status --short` output of the working tree */
+    gitStatus: data?.status ?? "",
     hasTerminal: data?.terminalSurface != null,
     actions: (data?.actions as MenuItem[] | undefined) ?? [],
     hasPlan: data?.hasPlan ?? false,

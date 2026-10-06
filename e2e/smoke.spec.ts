@@ -31,19 +31,61 @@ test("opening the page fetches /api/diff/auto and shows changed files", async ({
   await page.goto("/");
   const diffView = page.getByTestId("diff-view");
   await expect(diffView).toBeVisible();
-  // Three changed files are displayed (hello.ts, large-file.ts, new-file.ts)
-  const diffFiles = diffView.getByTestId("diff-file");
-  await expect(diffFiles).toHaveCount(3);
-  // File paths are shown
-  await expect(diffFiles.nth(0)).toContainText("hello.ts");
-  await expect(diffFiles.nth(1)).toContainText("large-file.ts");
-  await expect(diffFiles.nth(2)).toContainText("new-file.ts");
-  // New file has the New badge
-  await expect(diffFiles.nth(2)).toContainText("New");
+  // Three changed files are listed in the file tree (hello.ts, large-file.ts, new-file.ts)
+  const treeItems = diffView.getByTestId("file-tree-item");
+  await expect(treeItems).toHaveCount(3);
+  await expect(treeItems.nth(0)).toContainText("hello.ts");
+  await expect(treeItems.nth(1)).toContainText("large-file.ts");
+  await expect(treeItems.nth(2)).toContainText("new-file.ts");
+  // Only the selected file is rendered; the first file is selected by default
+  const diffFile = diffView.getByTestId("diff-file");
+  await expect(diffFile).toHaveCount(1);
+  await expect(diffFile).toContainText("hello.ts");
   // Added line content is visible
-  await expect(diffFiles.nth(0)).toContainText("hello world");
+  await expect(diffFile).toContainText("hello world");
+  // Selecting the new file shows it with the New badge and records it in the URL
+  await treeItems.nth(2).click();
+  await expect(diffFile).toContainText("new-file.ts");
+  await expect(diffFile).toContainText("New");
+  expect(page.url()).toContain("file=new-file.ts");
   // Verify the diff API was called
   expect(diffRequested).toBe(true);
+});
+
+test("the selected file survives a reload and back/forward navigation", async ({ page }) => {
+  await page.goto("/");
+  const diffView = page.getByTestId("diff-view");
+  const treeItems = diffView.getByTestId("file-tree-item");
+  const diffFile = diffView.getByTestId("diff-file");
+  await treeItems.filter({ hasText: "large-file.ts" }).click();
+  await expect(diffFile).toContainText("large-file.ts");
+  await page.reload();
+  await expect(diffFile).toContainText("large-file.ts");
+  await treeItems.filter({ hasText: "new-file.ts" }).click();
+  await expect(diffFile).toContainText("new-file.ts");
+  await page.goBack();
+  await expect(diffFile).toContainText("large-file.ts");
+  await page.goForward();
+  await expect(diffFile).toContainText("new-file.ts");
+});
+
+test("the split view toggle renders side-by-side rows and persists", async ({ page }) => {
+  await page.goto("/");
+  const diffFile = page.getByTestId("diff-file");
+  await expect(diffFile).toContainText("hello world");
+  await diffFile.getByRole("button", { name: "split" }).click();
+  await expect(diffFile.getByRole("button", { name: "split" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // The modified line shows the old text on the left and the new text on the right
+  const changedRow = diffFile.getByRole("row").filter({ hasText: "hello world" });
+  await expect(changedRow).toContainText('"hello"');
+  await page.reload();
+  await expect(diffFile.getByRole("button", { name: "split" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });
 
 test("modifying a file updates the diff view automatically", async ({ page, request }) => {
@@ -52,14 +94,14 @@ test("modifying a file updates the diff view automatically", async ({ page, requ
   const diffView = page.getByTestId("diff-view");
   await expect(diffView).toBeVisible();
   // Verify initial file count
-  await expect(diffView.getByTestId("diff-file")).toHaveCount(3);
+  await expect(diffView.getByTestId("file-tree-item")).toHaveCount(3);
   // Add a new file to the repo
   writeFileSync(join(repoDir, "added.ts"), "export const added = true;\n");
   execSync("git add added.ts", { cwd: repoDir, stdio: "pipe" });
-  // Wait for the diff view to update (watcher debounce + fetch)
-  await expect(diffView.getByTestId("diff-file")).toHaveCount(4);
-  // The added file is shown
-  await expect(diffView).toContainText("added.ts");
+  // Wait for the file tree to update (watcher debounce + fetch)
+  await expect(diffView.getByTestId("file-tree-item")).toHaveCount(4);
+  // The added file is listed
+  await expect(diffView.getByTestId("file-sidebar")).toContainText("added.ts");
 });
 
 test("ファイル変更時にスクロール位置がリセットされない", async ({ page, request }) => {
@@ -67,16 +109,14 @@ test("ファイル変更時にスクロール位置がリセットされない",
   await page.goto("/");
   const diffView = page.getByTestId("diff-view");
   await expect(diffView).toBeVisible();
-  // large-file.ts が表示されていることを確認
-  await expect(
-    diffView.getByTestId("diff-file").filter({ hasText: "large-file.ts" }),
-  ).toBeVisible();
-  // large-file.ts のファイルまでスクロール
-  const largeFile = diffView.getByTestId("diff-file").filter({ hasText: "large-file.ts" });
-  await largeFile.scrollIntoViewIfNeeded();
-  // スクロール位置を記録（contentVisibility: auto の影響でページ全体のscrollYではなくdiffView内のスクロールを確認）
-  const scrollBefore = await largeFile.evaluate((el) => el.getBoundingClientRect().top);
-  // large-file.ts がビューポートに見えている（スクロールが発生した）
+  // large-file.ts を選択する
+  await diffView.getByTestId("file-tree-item").filter({ hasText: "large-file.ts" }).click();
+  const pane = diffView.getByTestId("diff-pane");
+  await expect(pane).toContainText("line50 = 50");
+  // diff ペインをスクロール
+  await pane.evaluate((el) => el.scrollTo({ top: 800 }));
+  const scrollBefore = await pane.evaluate((el) => el.scrollTop);
+  expect(scrollBefore).toBeGreaterThan(0);
   // ファイルを変更してwatcherを発火させる
   writeFileSync(
     join(repoDir, "large-file.ts"),
@@ -85,9 +125,8 @@ test("ファイル変更時にスクロール位置がリセットされない",
   execSync("git add large-file.ts", { cwd: repoDir, stdio: "pipe" });
   // diff更新を待つ（変更後のコンテンツが表示されるまで）
   await expect(diffView).toContainText("line99 = 100");
-  // スクロール位置が維持されていることを確認（large-file.ts がまだ表示範囲内にある）
-  const scrollAfter = await largeFile.evaluate((el) => el.getBoundingClientRect().top);
-  // ファイルの位置が大幅にずれていない（TOPにリセットされていない）
+  // スクロール位置が維持されていることを確認（TOPにリセットされていない）
+  const scrollAfter = await pane.evaluate((el) => el.scrollTop);
   expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThan(200);
 });
 

@@ -1,26 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
+import { parseHash } from "../lib/route.ts";
 
-type Route =
-  | { page: "diff" }
-  | { page: "commits" }
-  | { page: "plan" }
-  | { page: "review" }
-  | { page: "commit"; hash: string };
-
-function parseHash(hash: string): Route {
-  const h = hash.replace(/^#\/?/, "");
-  if (h === "commits") return { page: "commits" };
-  if (h === "plan") return { page: "plan" };
-  if (h === "review") return { page: "review" };
-  if (h.startsWith("commit/")) {
-    const commitHash = h.slice("commit/".length);
-    if (commitHash) return { page: "commit", hash: commitHash };
-  }
-  return { page: "diff" };
-}
+export type { Route } from "../lib/route.ts";
 
 export function useHashRoute() {
-  const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
+  const [route, setRoute] = useState(() => parseHash(window.location.hash));
 
   useEffect(() => {
     const onHashChange = () => setRoute(parseHash(window.location.hash));
@@ -28,7 +12,18 @@ export function useHashRoute() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  const navigate = useCallback((path: string) => {
+  /**
+   * Navigate to a hash path. `replace` updates the current history entry
+   * instead of pushing a new one (used for keyboard file stepping so back/forward
+   * is not flooded with every intermediate file).
+   */
+  const navigate = useCallback((path: string, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      window.history.replaceState(window.history.state, "", `#${path}`);
+      // replaceState does not fire hashchange
+      setRoute(parseHash(window.location.hash));
+      return;
+    }
     window.location.hash = path;
   }, []);
 

@@ -50,7 +50,7 @@ export function ReviewView({ onBack, hasTerminal = false }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center h-64 text-xs text-[#8b949e]">
         Loading review files...
       </div>
     );
@@ -58,7 +58,7 @@ export function ReviewView({ onBack, hasTerminal = false }: Props) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-sm">
         <p className="text-[#848d97] text-sm">{error}</p>
         {reviewDirs.length > 0 && (
           <p className="text-[#848d97] text-xs font-mono">Watching: {reviewDirs.join(", ")}</p>
@@ -72,25 +72,25 @@ export function ReviewView({ onBack, hasTerminal = false }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-3 px-4 py-2 bg-[#161b22] border border-[#30363d] rounded-md relative overflow-hidden">
+      <div className="flex items-center gap-3 h-8 px-3 bg-[#161b22] border border-[#30363d] rounded-md relative overflow-hidden text-xs">
         {isPending && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1a1e24] overflow-hidden">
             <div className="h-full bg-[#58a6ff] animate-progress-bar" />
           </div>
         )}
-        <button className="text-[#58a6ff] hover:text-[#79c0ff] text-sm" onClick={onBack}>
+        <button className="shrink-0 text-[#58a6ff] hover:text-[#79c0ff]" onClick={onBack}>
           ← Back
         </button>
         {reviewDirs.length > 0 && (
-          <span className="text-[#848d97] text-xs font-mono truncate">{reviewDirs.join(", ")}</span>
+          <span className="text-[#8b949e] font-mono truncate">{reviewDirs.join(", ")}</span>
         )}
       </div>
       {files.map((file, idx) => (
         <div key={`${file.newPath}-${idx}`} className="space-y-1">
-          <div className="flex items-center justify-between px-3 py-1 text-xs text-[#848d97]">
+          <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-[11px] text-[#8b949e]">
             <span className="font-mono truncate">{file.relativePath ?? file.newPath}</span>
             <button
-              className="text-[#f85149] hover:text-[#ff6b6b] underline"
+              className="shrink-0 text-[#f85149] hover:text-[#ff6b6b] underline"
               onClick={() => handleDelete(file.newPath)}
               title="Delete this review file"
             >
